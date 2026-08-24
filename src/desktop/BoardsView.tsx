@@ -106,7 +106,7 @@ function BoardsSidebar({ onResizeStart }: { onResizeStart: (e: React.MouseEvent)
             }}
             onBlur={() => void submit()}
             placeholder={t('boards.boardTitlePlaceholder')}
-            className="w-full px-2.5 py-1.5 text-sm rounded-md border border-ink-200 bg-white focus:outline-none focus:border-skype"
+            className="w-full px-2.5 py-1.5 text-sm rounded-md border border-ink-200 bg-cloud text-ink-900 placeholder:text-ink-300 focus:outline-none focus:border-skype"
           />
         </div>
       )}
@@ -277,7 +277,7 @@ function BoardCanvas({ boardId }: { boardId: string }) {
                 }}
                 onBlur={() => void submitNewColumn()}
                 placeholder={t('boards.columnTitlePlaceholder')}
-                className="w-full px-2.5 py-1.5 text-sm rounded-md border border-ink-200 bg-white focus:outline-none focus:border-skype"
+                className="w-full px-2.5 py-1.5 text-sm rounded-md border border-ink-200 bg-cloud focus:outline-none focus:border-skype"
               />
             </div>
           ) : (
@@ -367,7 +367,7 @@ function ColumnView({ boardId, column, cards, onOpenCard }: {
               if (e.key === 'Escape') setEditingTitle(false)
             }}
             onBlur={() => void submitTitle()}
-            className="flex-1 px-1.5 py-0.5 text-sm font-medium rounded-md border border-skype/50 bg-white focus:outline-none"
+            className="flex-1 px-1.5 py-0.5 text-sm font-medium rounded-md border border-skype/50 bg-cloud focus:outline-none"
           />
         ) : (
           <button
@@ -406,12 +406,12 @@ function ColumnView({ boardId, column, cards, onOpenCard }: {
             multiline
             submitOnEnter
             rows={2}
-            className="w-full px-2.5 py-2 text-sm rounded-md border border-ink-200 bg-white focus:outline-none focus:border-skype resize-none"
+            className="w-full px-2.5 py-2 text-sm rounded-md border border-ink-200 bg-cloud focus:outline-none focus:border-skype resize-none"
           />
         ) : (
           <button
             onClick={() => setAdding(true)}
-            className="w-full text-left text-xs text-ink-400 px-2.5 py-1.5 rounded-md hover:bg-white hover:text-ink-600 transition-colors"
+            className="w-full text-left text-xs text-ink-400 px-2.5 py-1.5 rounded-md hover:bg-cloud hover:text-ink-600 transition-colors"
           >
             {t('boards.addCard')}
           </button>
@@ -437,7 +437,7 @@ function CardTile({ card, onOpen }: { card: BoardCard; onOpen: () => void }) {
       }}
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
-      className="px-3 py-2.5 rounded-md bg-white border border-ink-100 shadow-soft text-left cursor-pointer hover:border-skype/40 transition-colors"
+      className="px-3 py-2.5 rounded-md bg-cloud border border-ink-100 shadow-soft text-left cursor-pointer hover:border-skype/40 transition-colors"
     >
       <div className="text-sm text-ink-800 leading-snug">
         <MentionedText text={card.title} byId={byId} />
@@ -743,7 +743,7 @@ function MentionInput(props: {
           onKeyDown={onKeyDown}
           onBlur={props.onBlur}
           className={cn(
-            'w-full px-3 py-2 text-sm rounded-md border border-ink-200 bg-white focus:outline-none focus:border-skype resize-y',
+            'w-full px-3 py-2 text-sm rounded-md border border-ink-200 bg-cloud focus:outline-none focus:border-skype resize-y',
             props.className,
           )}
         />
@@ -757,13 +757,13 @@ function MentionInput(props: {
           onKeyDown={onKeyDown}
           onBlur={props.onBlur}
           className={cn(
-            'w-full px-3 py-2 text-sm rounded-md border border-ink-200 bg-white focus:outline-none focus:border-skype',
+            'w-full px-3 py-2 text-sm rounded-md border border-ink-200 bg-cloud focus:outline-none focus:border-skype',
             props.className,
           )}
         />
       )}
       {open && matches.length > 0 && (
-        <div className="absolute left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto rounded-md border border-ink-200 bg-white shadow-lg z-20">
+        <div className="absolute left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto rounded-md border border-ink-200 bg-cloud shadow-lg z-20">
           {matches.map((p, i) => (
             <button
               key={p.id}
@@ -866,7 +866,7 @@ function CardDetailModal({ boardId, card, columns, onClose }: {
               onChange={setTitle}
               onSubmit={() => void saveTitle()}
               placeholder={t('boards.cardTitleEditPlaceholder')}
-              className="-ml-2 w-full border-transparent bg-transparent px-2 py-1.5 text-[19px] font-semibold leading-7 text-ink-900 placeholder:text-ink-300 focus:border-skype/30 focus:bg-white focus:ring-2 focus:ring-skype/15"
+              className="-ml-2 w-full border-transparent bg-transparent px-2 py-1.5 text-[19px] font-semibold leading-7 text-ink-900 placeholder:text-ink-300 focus:border-skype/30 focus:bg-cloud focus:ring-2 focus:ring-skype/15"
             />
           </div>
           <button
@@ -1066,7 +1066,7 @@ function AssigneePicker({ value, onChange, meId }: {
           'group relative flex h-11 w-full items-center rounded-[14px] border border-ink-100 bg-cloud text-left text-[13px] font-semibold text-ink-900 outline-none transition',
           'shadow-[0_1px_0_rgba(255,255,255,0.92)_inset,0_10px_24px_-24px_rgba(26,78,120,0.55)]',
           'hover:border-sky2-200 hover:bg-sky2-50/60',
-          open && 'border-sky2-300 bg-white ring-4 ring-sky2-100',
+          open && 'border-sky2-300 bg-cloud ring-4 ring-sky2-100',
         )}
         style={{
           backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,250,253,0.94))',
@@ -1146,7 +1146,7 @@ function AssigneePicker({ value, onChange, meId }: {
           onClick={() => openMenu()}
           className={cn(
             'absolute right-2 grid h-7 w-7 place-items-center rounded-[9px] border border-sky2-100 bg-sky2-50 text-skype-deep transition',
-            'group-hover:bg-white group-focus-within:bg-sky2-50',
+            'group-hover:bg-cloud group-focus-within:bg-sky2-50',
             open && 'border-sky2-200 bg-sky2-50',
           )}
         >

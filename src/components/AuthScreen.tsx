@@ -209,7 +209,7 @@ export function AuthScreen() {
             type="button"
             onClick={() => go('google')}
             disabled={busy !== null}
-            className="h-11 rounded-[10px] border border-ink-200 bg-white hover:bg-cloud transition-colors flex items-center justify-center gap-3 text-[14px] text-ink-800 disabled:opacity-60"
+            className="h-11 rounded-[10px] border border-ink-100 bg-cloud hover:bg-sky2-50 text-ink-900 transition-colors flex items-center justify-center gap-3 text-[14px] font-medium disabled:opacity-60"
           >
             <GoogleMark />
             {busy === 'google' ? t('auth.redirecting') : t('auth.continueWithGoogle')}
@@ -218,7 +218,7 @@ export function AuthScreen() {
             type="button"
             onClick={() => go('github')}
             disabled={busy !== null}
-            className="h-11 rounded-[10px] bg-[#1f2328] hover:bg-[#2a3037] text-white transition-colors flex items-center justify-center gap-3 text-[14px] disabled:opacity-60"
+            className="h-11 rounded-[10px] bg-[#1f2328] hover:bg-[#2a3037] text-white transition-colors flex items-center justify-center gap-3 text-[14px] font-medium disabled:opacity-60"
           >
             <GitHubMark />
             {busy === 'github' ? t('auth.redirecting') : t('auth.continueWithGithub')}
@@ -272,20 +272,20 @@ function ServerSwitch({ open, onToggle }: { open: boolean; onToggle: () => void 
     )
   }
   return (
-    <div className="w-full border border-ink-200 rounded-[10px] p-3 bg-white/60 flex flex-col gap-2">
+    <div className="w-full border border-ink-100 rounded-[10px] p-3 bg-cloud flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <div className="text-[12px] font-display text-ink-700">{t('auth.apiServer')}</div>
-        <button type="button" onClick={onToggle} className="text-[11px] text-ink-300 hover:text-ink-500">{t('common.close')}</button>
+        <div className="text-[12px] font-display text-ink-900">{t('auth.apiServer')}</div>
+        <button type="button" onClick={onToggle} className="text-[11px] text-ink-500 hover:text-ink-900">{t('common.close')}</button>
       </div>
       {PRESETS.map((p) => (
         <button
           key={p.origin}
           type="button"
           onClick={() => apply(p.origin)}
-          className={`text-left h-9 px-2 rounded-[6px] text-[12px] flex items-center justify-between hover:bg-cloud transition-colors ${current === p.origin ? 'bg-cloud' : ''}`}
+          className={`text-left h-9 px-2 rounded-[6px] text-[12px] flex items-center justify-between hover:bg-paper transition-colors ${current === p.origin ? 'bg-paper' : ''}`}
         >
-          <span className="font-display text-ink-800">{PRESET_LABEL_KEY[p.label] ? t(PRESET_LABEL_KEY[p.label]) : p.label}</span>
-          <span className="text-[10px] text-ink-400">{p.origin}</span>
+          <span className="font-display text-ink-900">{PRESET_LABEL_KEY[p.label] ? t(PRESET_LABEL_KEY[p.label]) : p.label}</span>
+          <span className="text-[10px] text-ink-500">{p.origin}</span>
         </button>
       ))}
       <div className="flex items-stretch gap-2 pt-1">
@@ -294,13 +294,13 @@ function ServerSwitch({ open, onToggle }: { open: boolean; onToggle: () => void 
           value={custom}
           onChange={(e) => setCustom(e.target.value)}
           placeholder="https://your-server"
-          className="flex-1 h-9 px-2 rounded-[6px] border border-ink-200 text-[12px] focus:outline-none focus:border-ink-400"
+          className="flex-1 h-9 px-2 rounded-[6px] border border-ink-100 bg-paper text-ink-900 placeholder:text-ink-300 text-[12px] focus:outline-none focus:border-sky2-300"
         />
         <button
           type="button"
           disabled={!custom.trim()}
           onClick={() => apply(custom.trim())}
-          className="h-9 px-3 rounded-[6px] bg-ink-800 text-white text-[12px] disabled:opacity-40"
+          className="h-9 px-3 rounded-[6px] bg-skype hover:bg-skype-deep text-white text-[12px] disabled:opacity-40"
         >
           {t('common.use')}
         </button>
@@ -309,7 +309,7 @@ function ServerSwitch({ open, onToggle }: { open: boolean; onToggle: () => void 
         <button
           type="button"
           onClick={() => apply(null)}
-          className="text-[11px] text-ink-400 hover:text-ink-600 self-start"
+          className="text-[11px] text-ink-500 hover:text-ink-900 self-start"
         >
           {t('auth.clearOverride')}
         </button>

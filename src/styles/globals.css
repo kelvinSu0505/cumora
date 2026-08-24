@@ -95,7 +95,27 @@
   --chrome-pane: linear-gradient(180deg, #FBFDFE, #F4F8FC);
   --chrome-whisper: linear-gradient(180deg, #FBFAFE, #EFE9F7);
   --chrome-warm: linear-gradient(180deg, #FBF8F0, #F4EEDD);
+  --chrome-warm-rule: rgba(120, 110, 95, 0.25);
+  --chrome-warm-rule-soft: rgba(120, 110, 95, 0.18);
+  --chrome-warm-icon: #7A6A3F;
+  --chrome-warm-shadow: -12px 0 32px -10px rgba(60, 50, 30, 0.18);
+  --email-backdrop: rgb(var(--ink-900-rgb) / 0.15);
+  --email-muted: rgb(var(--ink-300-rgb));
   --select-face: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 253, 0.94));
+  --select-shadow: 0 1px 0 rgba(255, 255, 255, 0.92) inset, 0 10px 24px -24px rgba(26, 78, 120, 0.55);
+  --select-menu-shadow: 0 22px 55px -24px rgba(10, 30, 60, 0.38), 0 8px 18px -12px rgba(10, 30, 60, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.72) inset;
+  --select-menu-border: rgb(var(--sky-100-rgb));
+  /* Chat surface atmosphere + a few chrome pieces that were frozen as
+   * light RGBA. Dark remaps these; light stays pixel-identical. */
+  --chat-wash: radial-gradient(ellipse 80% 40% at 0% 0%, rgba(194, 230, 251, 0.3), transparent 60%), radial-gradient(ellipse 60% 40% at 100% 100%, rgba(255, 217, 210, 0.25), transparent 60%), var(--cloud);
+  --whispers-wash: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(210, 201, 233, 0.30), transparent 60%), linear-gradient(180deg, var(--paper) 0%, var(--whisper-50) 100%);
+  --whisper-room-wash: radial-gradient(ellipse 70% 50% at 0% 0%, rgba(210, 201, 233, 0.28), transparent 60%), radial-gradient(ellipse 60% 40% at 100% 100%, rgba(255, 217, 210, 0.18), transparent 60%), var(--paper);
+  --error-card: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 217, 210, 0.18));
+  --error-card-border: 1px solid rgba(255, 122, 107, 0.18);
+  --error-card-shadow: 0 12px 32px -16px rgba(200, 78, 63, 0.25);
+  --error-icon-bg: rgba(255, 122, 107, 0.12);
+  --unread-fresh: rgb(var(--gold-rgb));
+  --unread-fresh-fg: rgb(var(--ink-900-rgb));
 
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
@@ -150,8 +170,26 @@ html.dark {
   --chrome-rail: rgb(var(--paper-rgb));
   --chrome-pane: rgb(var(--paper-rgb));
   --chrome-whisper: rgb(var(--whisper-50-rgb));
-  --chrome-warm: #2a2824;
+  --chrome-warm: rgb(var(--paper-rgb));
+  --chrome-warm-rule: rgb(var(--ink-200-rgb));
+  --chrome-warm-rule-soft: rgb(var(--ink-100-rgb));
+  --chrome-warm-icon: rgb(var(--gold-rgb));
+  --chrome-warm-shadow: -12px 0 32px -10px rgba(0, 0, 0, 0.5);
+  --email-backdrop: rgb(0 0 0 / 0.5);
+  --email-muted: rgb(var(--ink-500-rgb));
   --select-face: none;
+  --select-shadow: 0 0 #0000;
+  --select-menu-shadow: 0 22px 55px -24px rgba(0, 0, 0, 0.55), 0 8px 18px -12px rgba(0, 0, 0, 0.35);
+  --select-menu-border: rgb(var(--ink-200-rgb));
+  --chat-wash: rgb(var(--cloud-rgb));
+  --whispers-wash: rgb(var(--cloud-rgb));
+  --whisper-room-wash: rgb(var(--paper-rgb));
+  --error-card: rgb(var(--sky-50-rgb));
+  --error-card-border: 1px solid rgb(var(--ink-200-rgb));
+  --error-card-shadow: 0 16px 36px -18px rgba(0, 0, 0, 0.55);
+  --error-icon-bg: rgba(224, 108, 117, 0.18);
+  --unread-fresh: rgb(var(--gold-deep-rgb));
+  --unread-fresh-fg: #21252b;
 }
 
 /* Native-shell tweaks (iOS / Android Capacitor builds). main.tsx adds

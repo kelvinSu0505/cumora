@@ -150,12 +150,12 @@ export function DocumentEditor({ documentId, variant = 'full', onClose, onOpenFu
   }, [documentId, user])
 
   if (!doc) return (
-    <div className="h-full flex items-center justify-center text-stone-400 text-sm">
+    <div className="h-full flex items-center justify-center text-ink-500 text-sm">
       {t('docEdit.notFound')}
     </div>
   )
   if (!user || !session) return (
-    <div className="h-full flex items-center justify-center text-stone-400 text-sm">
+    <div className="h-full flex items-center justify-center text-ink-500 text-sm">
       {t('common.loading')}
     </div>
   )
@@ -172,11 +172,11 @@ export function DocumentEditor({ documentId, variant = 'full', onClose, onOpenFu
   const isPeek = variant === 'peek'
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-cloud">
       <header
         className={cn(
-          'border-b border-stone-200 flex items-center gap-2.5 min-w-0',
-          isPeek ? 'px-4 py-3 bg-gradient-to-b from-white to-sky2-50/35' : 'px-6 py-3',
+          'border-b border-ink-100 flex items-center gap-2.5 min-w-0',
+          isPeek ? 'px-4 py-3 bg-gradient-to-b from-cloud to-sky2-50/35' : 'px-6 py-3',
         )}
       >
         <input
@@ -185,7 +185,7 @@ export function DocumentEditor({ documentId, variant = 'full', onClose, onOpenFu
           onBlur={commitTitle}
           onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
           className={cn(
-            'flex-1 min-w-0 bg-transparent font-medium text-stone-900 focus:outline-none',
+            'flex-1 min-w-0 bg-transparent font-medium text-ink-900 focus:outline-none',
             isPeek ? 'text-[16px] leading-[1.35]' : 'text-xl',
           )}
           placeholder={t('docEdit.untitledPh')}

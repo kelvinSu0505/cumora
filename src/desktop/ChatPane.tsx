@@ -1322,15 +1322,15 @@ function ThreadError({ message, onRetry }: { message: string; onRetry: () => voi
       <div
         className="flex flex-col items-center text-center max-w-[340px] gap-3 rounded-2xl px-6 py-6 backdrop-blur-sm"
         style={{
-          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 217, 210, 0.18))',
-          border: '1px solid rgba(255, 122, 107, 0.18)',
-          boxShadow: '0 12px 32px -16px rgba(200, 78, 63, 0.25)',
+          background: 'var(--error-card)',
+          border: 'var(--error-card-border)',
+          boxShadow: 'var(--error-card-shadow)',
         }}
       >
         <div
           className="w-10 h-10 rounded-full grid place-items-center"
           style={{
-            background: 'rgba(255, 122, 107, 0.12)',
+            background: 'var(--error-icon-bg)',
             color: 'var(--coral-deep)',
           }}
         >
@@ -1933,7 +1933,7 @@ export function ChatPane() {
         // chat surface (header + thread + composer share one continuous
         // background). Putting the gradient on the inner thread div used
         // to clip the coral haze right where the composer started.
-        background: 'radial-gradient(ellipse 80% 40% at 0% 0%, rgba(194, 230, 251, 0.3), transparent 60%), radial-gradient(ellipse 60% 40% at 100% 100%, rgba(255, 217, 210, 0.25), transparent 60%), var(--cloud)',
+        background: 'var(--chat-wash)',
       }}
     >
       <ChatHeader
