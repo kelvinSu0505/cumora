@@ -266,7 +266,7 @@ function BoardCanvas({ boardId }: { boardId: string }) {
             />
           ))}
           {addingCol ? (
-            <div className="w-72 flex-shrink-0 p-3 rounded-lg bg-cloud/60">
+            <div className="w-72 flex-shrink-0 p-3 rounded-lg bg-[var(--board-column)]">
               <input
                 autoFocus
                 value={colDraft}
@@ -340,7 +340,7 @@ function ColumnView({ boardId, column, cards, onOpenCard }: {
   return (
     <div
       className={cn(
-        'w-72 flex-shrink-0 h-full flex flex-col rounded-lg bg-cloud/60 transition-colors',
+        'w-72 flex-shrink-0 h-full flex flex-col rounded-lg bg-[var(--board-column)] transition-colors',
         dragOver && 'ring-2 ring-skype/40 bg-skype/5',
       )}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
@@ -437,7 +437,7 @@ function CardTile({ card, onOpen }: { card: BoardCard; onOpen: () => void }) {
       }}
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
-      className="px-3 py-2.5 rounded-md bg-cloud border border-ink-100 shadow-soft text-left cursor-pointer hover:border-skype/40 transition-colors"
+      className="cursor-pointer rounded-md border border-[var(--board-card-border)] bg-[var(--board-card)] px-3 py-2.5 text-left shadow-[var(--board-card-shadow)] transition-colors hover:border-skype/40"
     >
       <div className="text-sm text-ink-800 leading-snug">
         <MentionedText text={card.title} byId={byId} />
@@ -854,7 +854,7 @@ function CardDetailModal({ boardId, card, columns, onClose }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink-900/40 p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[var(--modal-scrim)] p-6" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
         className="bg-cloud w-full max-w-2xl max-h-[85vh] rounded-xl shadow-xl flex flex-col"
@@ -1064,12 +1064,12 @@ function AssigneePicker({ value, onChange, meId }: {
       <div
         className={cn(
           'group relative flex h-11 w-full items-center rounded-[14px] border border-ink-100 bg-cloud text-left text-[13px] font-semibold text-ink-900 outline-none transition',
-          'shadow-[0_1px_0_rgba(255,255,255,0.92)_inset,0_10px_24px_-24px_rgba(26,78,120,0.55)]',
+          'shadow-[var(--select-shadow)]',
           'hover:border-sky2-200 hover:bg-sky2-50/60',
           open && 'border-sky2-300 bg-cloud ring-4 ring-sky2-100',
         )}
         style={{
-          backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,250,253,0.94))',
+          backgroundImage: 'var(--select-face)',
         }}
       >
         {!open && (
@@ -1159,7 +1159,7 @@ function AssigneePicker({ value, onChange, meId }: {
         <div
           id={`${id}-listbox`}
           role="listbox"
-          className="absolute left-0 right-0 top-full z-[70] mt-2 max-h-72 overflow-auto rounded-[16px] border border-sky2-100 bg-cloud p-2.5 shadow-[0_22px_55px_-24px_rgba(10,30,60,0.38),0_8px_18px_-12px_rgba(10,30,60,0.2),0_0_0_1px_rgba(255,255,255,0.72)_inset] animate-rise"
+          className="absolute left-0 right-0 top-full z-[70] mt-2 max-h-72 overflow-auto rounded-[16px] border border-[var(--select-menu-border)] bg-cloud p-2.5 shadow-[var(--select-menu-shadow)] animate-rise"
         >
           {filtered.map((option, idx) => {
             const active = idx === activeIndex

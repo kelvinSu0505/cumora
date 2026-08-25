@@ -88,7 +88,7 @@ function ProfileTab() {
             <div className="font-display italic text-[14px] text-ink-500 truncate">{authUser.email}</div>
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               {providers.map((p) => (
-                <span key={p} className="text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-white text-ink-600" style={{ border: '1px solid var(--ink-100)' }}>
+                <span key={p} className="text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-paper text-ink-700" style={{ border: '1px solid var(--ink-100)' }}>
                   {p}
                 </span>
               ))}

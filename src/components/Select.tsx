@@ -124,7 +124,7 @@ export function Select<T extends string = string>({
   }
 
   return (
-    <div ref={rootRef} className={cn('relative', className)}>
+    <div ref={rootRef} className={cn('relative', open && 'z-[80]', className)}>
       <button
         id={selectId}
         type="button"
