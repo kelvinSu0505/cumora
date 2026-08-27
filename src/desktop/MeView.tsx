@@ -768,9 +768,6 @@ function SkypeSoundSection() {
   )
 }
 
-// Brand and engine names stay in English in every locale. The values
-// below are display labels surfaced to users when we list computers —
-// products keep their own casing.
 const KIND_ICON: Record<string, string> = { cloud: '☁', local: '💻', vps: '🖥' }
 const STATUS_COLOR: Record<string, string> = { online: '#3BB273', busy: '#E6A23C', offline: 'var(--ink-300)' }
 
@@ -840,7 +837,7 @@ function ComputersTab() {
   // Engine for a NEWLY added computer's starter/assigned agents. Claude is the
   // default (no flag → daemon auto-detects); every other pick is named
   // explicitly, or the daemon auto-detects and engines[0] silently wins.
-  const [engine, setEngine] = useState<'claude' | 'codex' | 'grok' | 'cursor' | 'opencode'>('claude')
+  const [engine, setEngine] = useState<'claude' | 'codex' | 'grok' | 'cursor' | 'opencode' | 'pi'>('claude')
   // Default on: install the always-on service (auto-start/restart/update).
   const [asService, setAsService] = useState(true)
   // Per-computer re-pair (reconnect) command, keyed by computer id.
@@ -1028,14 +1025,7 @@ function ComputersTab() {
                             </div>
                             {isDefault ? (
                               <span className="text-[12px] font-semibold text-skype-deep">✓ {t('me.agentsIsDefault')}</span>
-                            ) : engineId ? (
-                              advertised ? null : (
-                                <button type="button" onClick={() => void openRepair(c.id)}
-                                  className="text-[12px] font-semibold text-skype-deep hover:underline shrink-0">
-                                  {t('me.agentsNeedPair')}
-                                </button>
-                              )
-                            ) : (
+                            ) : engineId ? null : (
                               <span className="text-[11px] text-ink-400 shrink-0">{t('me.agentsNotRunnable')}</span>
                             )}
                           </div>
@@ -1078,7 +1068,7 @@ function ComputersTab() {
             <div className="flex items-center gap-2.5 mb-2.5">
               <span className="text-[12px] text-ink-500">{t('me.engineLabel')}</span>
               <div className="inline-flex rounded-[9px] p-0.5" style={{ background: 'var(--ink-100)' }}>
-                {([['claude', 'Claude Code'], ['codex', 'Codex'], ['grok', 'Grok Build'], ['cursor', 'Cursor'], ['opencode', 'OpenCode']] as const).map(([id, label]) => (
+                {([['claude', 'Claude Code'], ['codex', 'Codex'], ['grok', 'Grok Build'], ['cursor', 'Cursor'], ['opencode', 'OpenCode'], ['pi', 'pi']] as const).map(([id, label]) => (
                   <button key={id} type="button" onClick={() => setEngine(id)}
                     className="px-3 py-1 rounded-[7px] text-[12px] font-semibold transition-colors duration-150"
                     style={engine === id

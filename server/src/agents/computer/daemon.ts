@@ -2,7 +2,7 @@
  * `cumora agent computer` — the BYOA daemon.
  *
  * A long-running process on the user's machine (laptop or VPS) that hosts one
- * or more of their Cumora agents, using a local engine (Claude Code / Codex /
+ * or more of their Cumora agents, using a local engine (Claude Code / Codex / pi /
  * Grok Build / Cursor Agent / OpenCode) as each agent's brain. See docs/BYOA.md.
  *
  * It talks to the Cumora server only over HTTP — no DB/Redis — so it can run
@@ -27,7 +27,7 @@ import { promisify } from 'node:util'
 
 const execFileP = promisify(execFile)
 import { parseSseStream, wakeStreamWasStable } from '../runtime/sse-parse.js'
-import { detectEngines, snapshotDetectedEngines, getAdapter, ENGINE_IDS, runEngineDoctor, type EngineId, type EngineSession, type EngineRunResult, type EngineUsage, type EngineHopReport } from './engine.js'
+import { detectEnginesWithStatus, snapshotDetectedEngines, getAdapter, ENGINE_IDS, runEngineDoctor, type EngineId, type EngineSession, type EngineRunResult, type EngineUsage, type EngineHopReport } from './engine.js'
 import { usageFromClaude, type TokenUsage } from '../cost.js'
 import { parseTriage, finalizeTriage, isRateLimited } from '../triage-core.js'
 import { GLANCE_YIELD_RULES } from '../glance-protocol.js'
@@ -59,6 +59,11 @@ const DEFAULT_SERVER = process.env.CUMORA_SERVER_URL || 'https://api.cumora.ai'
 const TOKEN_REFRESH_SKEW_MS = 5 * 60 * 1000 // refresh 5min before expiry
 const AGENT_POLL_MS = 60_000
 const HEARTBEAT_MS = 30_000
+// How often the daemon re-scans PATH for installed engines. Deliberately much
+// slower than the heartbeat: detection spawns a `which`/`where` per engine, and
+// nobody installs a CLI twice a minute. The heartbeat carries the CACHED result,
+// so the report costs nothing on the 30s tick.
+const ENGINE_RESCAN_MS = 5 * 60 * 1000
 // While an engine turn is in flight, bump the run's updated_at this often so the
 // server's 10-min stale-run sweeper doesn't false-positive a legitimately long
 // turn (a multi-hour Bash, a deep task) as "orphaned". 60s = 10× margin under the
@@ -630,6 +635,9 @@ function authFailureHint(engine: EngineId, detail: string): string {
   if (engine === 'opencode') {
     return 'Open a terminal on that computer and run `opencode providers login` (or fix the selected provider/model quota), then wake the agent again.'
   }
+  if (engine === 'pi') {
+    return 'Open pi on that computer and run `/login` for its provider (or fix the API key / quota), then wake the agent again.'
+  }
   return 'Open Codex on that computer and refresh its login or quota, then wake the agent again.'
 }
 
@@ -643,6 +651,7 @@ function missingEngineMessage(): string {
     '  - Grok Build: install the `grok` CLI, then run `grok login` once',
     '  - Cursor Agent: install Cursor (the `cursor-agent` CLI ships with it), then run `cursor-agent login`',
     '  - OpenCode: install the `opencode` CLI, then run `opencode providers login` once',
+    '  - pi: `npm install -g --ignore-scripts @earendil-works/pi-coding-agent`, then run `pi` once and `/login` a provider',
     '',
     'After that, rerun:',
     '  npx cumora@latest agent computer --pair <code>',
@@ -654,7 +663,7 @@ function helpText(): string {
     'cumora agent computer — run your Cumora agents on THIS machine (BYOA)',
     '',
     'The daemon talks to a Cumora server over HTTP and drives a local agent',
-    'engine (Claude Code, Codex, Grok Build, Cursor Agent, or OpenCode). Pair once, then it runs in the background.',
+    'engine (Claude Code, Codex, Grok Build, Cursor Agent, OpenCode, or pi). Pair once, then it runs in the background.',
     '',
     'Usage:',
     '  npx cumora@latest agent computer --pair <code> [--server <url>] [--engine <id>]',
@@ -684,9 +693,32 @@ function helpText(): string {
 }
 
 async function requireLocalEngine(): Promise<EngineId[]> {
-  const engines = await detectEngines()
-  if (engines.length === 0) throw new Error(missingEngineMessage())
-  return engines
+  const detected = await detectEnginesWithStatus()
+  if (!detected.reliable) {
+    throw new Error('could not scan PATH (`which` / `where` failed). Fix that, then retry pairing.')
+  }
+  if (detected.engines.length === 0) throw new Error(missingEngineMessage())
+  return detected.engines
+}
+
+/** Resolve the engine a daemon can actually run from its LIVE PATH inventory. */
+export function resolveAvailableEngine(
+  requested: EngineId | null | undefined,
+  available: readonly EngineId[],
+): EngineId | null {
+  return requested && available.includes(requested) ? requested : (available[0] ?? null)
+}
+
+export interface EngineInventory {
+  current: EngineId[]
+}
+
+/** Replace the shared engine inventory after a trustworthy PATH scan. */
+export function replaceEngineInventory(inventory: EngineInventory, next: readonly EngineId[]): boolean {
+  const current = inventory.current
+  const changed = next.length !== current.length || next.some((engine, i) => engine !== current[i])
+  if (changed) inventory.current = [...next]
+  return changed
 }
 
 // ─── config ─────────────────────────────────────────────────────────────
@@ -1476,15 +1508,16 @@ class AgentRunner {
     }
   }
 
-  /** Triage model id for pricing, honoring CUMORA_TRIAGE_MODEL. Cursor and
-   *  OpenCode have no universal cheap alias, so a reported/pinned stream model
-   *  wins and the agent model is only a fallback. */
+  /** Triage model id for pricing, honoring CUMORA_TRIAGE_MODEL. Cursor,
+   *  OpenCode and pi have no universal cheap alias, so a reported/pinned stream
+   *  model wins and the agent model is only a fallback. */
   private triageModel(): string {
     if (process.env.CUMORA_TRIAGE_MODEL) return process.env.CUMORA_TRIAGE_MODEL
     if (this.adapter.id === 'claude') return 'haiku'
     if (this.adapter.id === 'grok') return 'grok-4.5'
     if (this.adapter.id === 'codex') return 'gpt-5.4-mini'
     if (this.adapter.id === 'opencode') return this.agent.model ?? '<opencode-default>'
+    if (this.adapter.id === 'pi') return this.agent.model ?? '<pi-default>'
     return this.agent.model ?? '<cursor-default>'
   }
 
@@ -2399,15 +2432,16 @@ async function doRun(serverOverride?: string): Promise<void> {
     return
   }
   if (serverOverride) cfg.serverUrl = serverOverride
-  let available: EngineId[]
+  let initialEngines: EngineId[]
   try {
-    available = await requireLocalEngine()
+    initialEngines = await requireLocalEngine()
   } catch (err) {
     console.error(`[computer] ${err instanceof Error ? err.message : String(err)}`)
     process.exitCode = 70
     return
   }
-  console.log(`[computer] cumora ${CURRENT_VERSION} · starting ${cfg.computerId} @ ${cfg.serverUrl} (engines: ${available.join(', ')})`)
+  const engineInventory: EngineInventory = { current: initialEngines }
+  console.log(`[computer] cumora ${CURRENT_VERSION} · starting ${cfg.computerId} @ ${cfg.serverUrl} (engines: ${engineInventory.current.join(', ')})`)
   // Record what THIS process is running, keyed by pid, so `--status` can report
   // the version of the live service instance reliably (cross-checked against the
   // running pid — survives log rotation, no log-scraping).
@@ -2432,10 +2466,21 @@ async function doRun(serverOverride?: string): Promise<void> {
       console.warn('[computer] agent sync failed:', err instanceof Error ? err.message : err)
       return
     }
+    const available = engineInventory.current
     for (const agent of agents) {
-      const engine: EngineId | null =
-        agent.engine && available.includes(agent.engine) ? agent.engine : (available[0] ?? null)
-      if (!engine) continue
+      const engine = resolveAvailableEngine(agent.engine, available)
+      if (!engine) {
+        // A successful rescan may legitimately find that the last installed CLI
+        // was removed. Stop an existing runner instead of leaving it alive on an
+        // engine this machine no longer has.
+        const existing = runners.get(agent.id)
+        if (existing) {
+          console.log(`[computer] no installed engine remains for ${agent.name} (${agent.id}) → stopping runner`)
+          existing.stop()
+          runners.delete(agent.id)
+        }
+        continue
+      }
       const existing = runners.get(agent.id)
       if (existing) {
         if (existing.configMatches(agent, engine)) continue
@@ -2457,9 +2502,40 @@ async function doRun(serverOverride?: string): Promise<void> {
     }
   }
 
+  // Engines this machine can currently run, re-scanned on a slow timer. Reported
+  // on every heartbeat so installing another supported CLI takes effect without
+  // re-pairing — the daemon is already online and can see PATH itself, so there
+  // is no reason to make the user mint a new pairing token for it.
+  const rescanEngines = async (): Promise<void> => {
+    try {
+      const detected = await detectEnginesWithStatus()
+      if (!detected.reliable) return  // broken `which` / `where` — keep the last good list
+      const next = detected.engines
+      const previous = engineInventory.current
+      const changed = replaceEngineInventory(engineInventory, next)
+      if (changed) {
+        console.log(`[computer] engines on PATH changed: ${previous.join(', ') || 'none'} → ${next.join(', ') || 'none'}`)
+        // Heartbeat already advertises the live inventory. This snapshot is
+        // only the PATH display the app reads — pairable engines, never the
+        // detect-only bins Electron lists on the Me page.
+        const snapshot = await snapshotDetectedEngines(next)
+        await api(cfg.serverUrl, '/api/computers/me/engines', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${cfg.deviceToken}` },
+          body: JSON.stringify({ engines: next, detected: snapshot }),
+        }).catch((err) => {
+          console.warn('[computer] engine snapshot report failed', err instanceof Error ? err.message : err)
+        })
+      }
+      // This is the same live inventory sync() uses to choose an agent's
+      // adapter. Updating only a heartbeat cache would advertise a newly
+      // installed engine while silently running that agent on the old default.
+    } catch { /* transient — the next tick retries */ }
+  }
+
   const heartbeat = async (): Promise<void> => {
     try {
-      const beat = await fetch(`${cfg.serverUrl}/api/computers/heartbeat`, {
+      await fetch(`${cfg.serverUrl}/api/computers/heartbeat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.deviceToken}` },
         // A heartbeat that never answers must not outlive its own interval, or
@@ -2468,19 +2544,8 @@ async function doRun(serverOverride?: string): Promise<void> {
         // `supervised` tells the server HOW this daemon runs (service vs. a
         // foreground command), so the app's upgrade banner can show the right
         // update instructions for this machine.
-        body: JSON.stringify({ version: CURRENT_VERSION, supervised: SUPERVISED }),
+        body: JSON.stringify({ version: CURRENT_VERSION, supervised: SUPERVISED, engines: engineInventory.current }),
       })
-      const body = beat.ok ? await beat.json().catch(() => null) as { detectRequested?: boolean } | null : null
-      if (body?.detectRequested) {
-        const snapshot = await snapshotDetectedEngines()
-        await api(cfg.serverUrl, '/api/computers/me/engines', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${cfg.deviceToken}` },
-          body: JSON.stringify({ engines: snapshot.map((s) => s.id), detected: snapshot }),
-        }).catch((err) => {
-          console.warn('[computer] engine snapshot report failed', err instanceof Error ? err.message : err)
-        })
-      }
     } catch { /* transient — next tick retries */ }
   }
 
@@ -2491,6 +2556,8 @@ async function doRun(serverOverride?: string): Promise<void> {
   }
   const poll = setInterval(() => { void sync() }, AGENT_POLL_MS)
   const beat = setInterval(() => { void heartbeat() }, HEARTBEAT_MS)
+  const rescan = setInterval(() => { void rescanEngines() }, ENGINE_RESCAN_MS)
+  rescan.unref?.()
   // Keep the service log from filling the disk: rotate at boot, then periodically.
   void rotateLogsIfNeeded()
   const logrot = setInterval(() => { void rotateLogsIfNeeded() }, LOG_ROTATE_MS)
@@ -2509,7 +2576,7 @@ async function doRun(serverOverride?: string): Promise<void> {
   const shutdown = async (why: string): Promise<void> => {
     if (shuttingDown) return
     shuttingDown = true
-    clearInterval(poll); clearInterval(beat); clearInterval(logrot)
+    clearInterval(poll); clearInterval(beat); clearInterval(logrot); clearInterval(rescan)
     if (upd) clearInterval(upd)
     if (idleWatch) clearInterval(idleWatch)
     if (controlWatch) clearInterval(controlWatch)

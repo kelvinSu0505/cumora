@@ -53,17 +53,21 @@ test('sanitizeDetectedEngines drops unknown ids and fills missing bins', () => {
   ])
 })
 
-test('listAgentsForComputer does not pin CUMORA_DEFAULT_* onto empty models', async () => {
+test('listAgentsForComputer keeps an explicit model and pins CUMORA_DEFAULT_* when empty', async () => {
   installPoolMock(({ sql }) => {
     if (/FROM participants/.test(sql)) {
-      return { rows: [{ id: 'bram', name: 'Bram', role: 'engineer', systemPrompt: null, engine: 'claude', model: 'stale-pin', fastModel: 'haiku' }] }
+      return { rows: [
+        { id: 'bram', name: 'Bram', role: 'engineer', systemPrompt: null, engine: 'claude', model: 'stale-pin', fastModel: 'haiku' },
+        { id: 'saga', name: 'Saga', role: 'writer', systemPrompt: null, engine: 'claude', model: null, fastModel: null },
+      ] }
     }
     return { rows: [] }
   })
   const agents = await registry.listAgentsForComputer('comp-1')
-  assert.equal(agents[0]?.model, null)
-  assert.equal(agents[0]?.fastModel, null)
-  assert.equal(agents[0]?.engine, 'claude')
+  assert.equal(agents[0]?.model, 'stale-pin')
+  assert.equal(agents[0]?.fastModel, 'haiku')
+  assert.equal(agents[1]?.model, 'claude-opus-4-7')
+  assert.equal(agents[1]?.engine, 'claude')
 })
 
 test('reportDetectedEngines keeps the previous default first when it is still installed', async () => {
@@ -108,24 +112,14 @@ test('setComputerDefaultEngine reorders engines and only moves inheriting agents
   }
 })
 
-test('heartbeatComputer reports detectRequested from detect_requested_at', async () => {
+test('heartbeatComputer is quiet when the computer is already online', async () => {
   installPoolMock(({ sql }) => {
     if (/AND status = 'online'/.test(sql)) {
-      return { rows: [{ detect_requested_at: '2026-08-01T00:00:00Z' }], rowCount: 1 }
+      return { rows: [{}], rowCount: 1 }
     }
     return { rows: [] }
   })
-  const requested = await registry.heartbeatComputer('comp-1', '0.4.0', true)
-  assert.equal(requested.detectRequested, true)
-
-  installPoolMock(({ sql }) => {
-    if (/AND status = 'online'/.test(sql)) {
-      return { rows: [{ detect_requested_at: null }], rowCount: 1 }
-    }
-    return { rows: [] }
-  })
-  const idle = await registry.heartbeatComputer('comp-1', '0.4.0', true)
-  assert.equal(idle.detectRequested, false)
+  await registry.heartbeatComputer('comp-1', '0.5.0', true)
 })
 
 test('assignAgentToComputer pins when an engine is named and inherits when it is not', async () => {

@@ -1392,8 +1392,9 @@ ipcMain.handle('app:is-focused', () => {
 })
 
 // Keep in sync with src/lib/engines.ts. Official daemon detectEngines() only
-// probes the first five (has adapters). The rest are listed so the Me page
-// can show what is installed on THIS Mac; they cannot be assigned to people.
+// probes engines with adapters (claude/cursor/codex/grok/opencode/pi). The rest
+// are listed so the Me page can show what is installed on THIS machine; they
+// cannot be assigned to people.
 const LOCAL_CLIS = [
   { id: 'claude', bin: 'claude' },
   { id: 'cursor', bin: 'cursor-agent' },

@@ -20,7 +20,7 @@ import { publish, CH_STATUS } from '../../redis.js'
 import { signAgentToken } from '../runtime/jwt.js'
 
 export type ComputerKind = 'cloud' | 'local' | 'vps'
-export type EngineId = 'managed' | 'claude' | 'codex' | 'grok' | 'cursor' | 'opencode'
+export type EngineId = 'managed' | 'claude' | 'codex' | 'grok' | 'cursor' | 'opencode' | 'pi'
 export type ComputerStatus = 'online' | 'offline' | 'busy'
 
 /** How long a paired computer can go without a heartbeat before the sweep
@@ -45,7 +45,38 @@ export async function announceComputerOnline(computerId: string, companyId: stri
 }
 
 /** Engines a paired (non-cloud) computer is allowed to advertise. */
-const PAIRABLE_ENGINES: ReadonlySet<string> = new Set(['claude', 'codex', 'grok', 'cursor', 'opencode'])
+const PAIRABLE_ENGINES: ReadonlySet<string> = new Set(['claude', 'codex', 'grok', 'cursor', 'opencode', 'pi'])
+
+/** Merge a fresh PATH detection into a computer's advertised engine list.
+ *
+ *  `available_engines[0]` is the computer's DEFAULT — pairComputer's comment
+ *  puts it plainly: "first = default", and it decides the engine for the starter
+ *  team and for any agent assigned without an explicit override. So a re-detect
+ *  must never reorder silently: if the current default is still installed it
+ *  stays first, and the rest follow detection order. Installing a new CLI adds
+ *  it to the tail; uninstalling one drops it.
+ *
+ *  Returns null when there is nothing to write — a fully-unknown detection or a
+ *  list identical to what is stored. An explicitly empty detection is valid:
+ *  the daemon only reports it after a successful scan, so it means the final
+ *  supported CLI was uninstalled and the stale inventory must be cleared.
+ *
+ *  Exported for tests. */
+export function mergeDetectedEngines(current: string[], detected: string[]): string[] | null {
+  const fresh = detected.filter((e) => PAIRABLE_ENGINES.has(e))
+  // Non-empty but entirely unknown means a newer daemon is naming only engines
+  // this server cannot run yet. Do not let that compatibility case wipe known
+  // state; [] itself remains a trustworthy, successful empty PATH scan.
+  if (detected.length > 0 && fresh.length === 0) return null
+  const seen = new Set<string>()
+  const next: string[] = []
+  const currentDefault = current[0]
+  // Keep the default pinned to the front while it is still installed.
+  if (currentDefault && fresh.includes(currentDefault)) { next.push(currentDefault); seen.add(currentDefault) }
+  for (const e of fresh) { if (!seen.has(e)) { next.push(e); seen.add(e) } }
+  const same = next.length === current.length && next.every((e, i) => e === current[i])
+  return same ? null : next
+}
 
 const ENGINE_BINS: Record<string, string> = {
   claude: 'claude',
@@ -53,6 +84,7 @@ const ENGINE_BINS: Record<string, string> = {
   grok: 'grok',
   cursor: 'cursor-agent',
   opencode: 'opencode',
+  pi: 'pi',
 }
 
 /** Cached PATH snapshot from the daemon. The app reads this; it never probes. */
@@ -317,25 +349,48 @@ export async function pairComputer(args: {
 /** Daemon liveness ping. Bumps last_seen_at + the reported version; flips
  *  offline→online and broadcasts only on the transition (so a steady heartbeat
  *  is quiet). The version lets the app flag outdated daemons. */
-export async function heartbeatComputer(computerId: string, version?: string, supervised?: boolean): Promise<{ detectRequested: boolean }> {
+export async function heartbeatComputer(
+  computerId: string,
+  version?: string,
+  supervised?: boolean,
+  detectedEngines?: string[],
+): Promise<void> {
   const v = typeof version === 'string' && version ? version.slice(0, 32) : null
   const sup = typeof supervised === 'boolean' ? supervised : null
-  const bumped = await pool.query<{ detect_requested_at: string | null }>(
+  // Keep the advertised engine list current WITHOUT a re-pair. The daemon is
+  // already online and re-scans PATH, so installing another supported CLI shows
+  // up here instead of requiring the user to mint a new pairing token. Only for
+  // paired computers: a cloud computer advertises 'managed' and has no PATH.
+  if (detectedEngines) {
+    const { rows } = await pool.query<{ available_engines: string[]; kind: ComputerKind }>(
+      `SELECT available_engines, kind FROM computers WHERE id = $1 AND revoked_at IS NULL`,
+      [computerId],
+    )
+    const row = rows[0]
+    if (row && row.kind !== 'cloud') {
+      const next = mergeDetectedEngines(row.available_engines ?? [], detectedEngines)
+      if (next) {
+        await pool.query(
+          `UPDATE computers SET available_engines = $2::jsonb WHERE id = $1 AND revoked_at IS NULL`,
+          [computerId, JSON.stringify(next)],
+        )
+      }
+    }
+  }
+  const bumped = await pool.query(
     `UPDATE computers SET last_seen_at = NOW(), daemon_version = COALESCE($2, daemon_version),
             daemon_supervised = COALESCE($3, daemon_supervised)
-      WHERE id = $1 AND revoked_at IS NULL AND status = 'online'
-      RETURNING detect_requested_at`,
+      WHERE id = $1 AND revoked_at IS NULL AND status = 'online' RETURNING 1`,
     [computerId, v, sup],
   )
-  if (bumped.rowCount) return { detectRequested: bumped.rows[0]?.detect_requested_at != null }
-  const { rows } = await pool.query<{ company_id: string; detect_requested_at: string | null }>(
+  if (bumped.rowCount) return // already online — quiet bump
+  const { rows } = await pool.query<{ company_id: string }>(
     `UPDATE computers SET status = 'online', last_seen_at = NOW(), daemon_version = COALESCE($2, daemon_version),
             daemon_supervised = COALESCE($3, daemon_supervised)
-      WHERE id = $1 AND revoked_at IS NULL RETURNING company_id, detect_requested_at`,
+      WHERE id = $1 AND revoked_at IS NULL RETURNING company_id`,
     [computerId, v, sup],
   )
   if (rows[0]) await broadcastComputerStatus(computerId, rows[0].company_id, 'online')
-  return { detectRequested: rows[0]?.detect_requested_at != null }
 }
 
 /** Mark paired computers offline once their heartbeat goes stale, and
@@ -389,8 +444,17 @@ export async function mintAgentRuntimeToken(args: {
 }
 
 /** Agents assigned to a computer — the daemon's discovery list on boot.
- *  Big-brain model is left unset so the local CLI uses its own default
- *  (`--model` is omitted). Triage still uses each adapter's cheap small-brain. */
+ *  Includes the per-agent big-brain (`model`) + small-brain (`fastModel`)
+ *  overrides so the daemon can pass them to the engine.
+ *
+ *  When a row has no explicit model, fall back to the deploy-level default
+ *  (CUMORA_DEFAULT_CLAUDE_MODEL / CUMORA_DEFAULT_CODEX_MODEL /
+ *  CUMORA_DEFAULT_GROK_MODEL / CUMORA_DEFAULT_CURSOR_MODEL /
+ *  CUMORA_DEFAULT_OPENCODE_MODEL / CUMORA_DEFAULT_PI_MODEL) so every BYOA
+ *  daemon gets a consistent pin — independent of whatever model the local
+ *  engine CLI happens to default to today. Critical: a model
+ *  upgrade in the underlying CLI (e.g. claude 4.7 → 4.8) silently changes
+ *  agent behavior on every user's machine unless we pin here. */
 export async function listAgentsForComputer(computerId: string): Promise<
   Array<{ id: string; name: string; role: string | null; systemPrompt: string | null; engine: EngineId | null; model: string | null; fastModel: string | null }>
 > {
@@ -400,7 +464,29 @@ export async function listAgentsForComputer(computerId: string): Promise<
       ORDER BY name ASC`,
     [computerId],
   )
-  return rows.map((r) => ({ ...r, model: null, fastModel: null }))
+  const claudeDefault = process.env.CUMORA_DEFAULT_CLAUDE_MODEL?.trim() || null
+  const codexDefault = process.env.CUMORA_DEFAULT_CODEX_MODEL?.trim() || null
+  const grokDefault = process.env.CUMORA_DEFAULT_GROK_MODEL?.trim() || null
+  const cursorDefault = process.env.CUMORA_DEFAULT_CURSOR_MODEL?.trim() || null
+  const openCodeDefault = process.env.CUMORA_DEFAULT_OPENCODE_MODEL?.trim() || null
+  const piDefault = process.env.CUMORA_DEFAULT_PI_MODEL?.trim() || null
+  return rows.map((r) => {
+    if (r.model) return r
+    const dflt = r.engine === 'codex'
+      ? codexDefault
+      : r.engine === 'claude'
+        ? claudeDefault
+        : r.engine === 'grok'
+          ? grokDefault
+          : r.engine === 'cursor'
+            ? cursorDefault
+            : r.engine === 'opencode'
+              ? openCodeDefault
+              : r.engine === 'pi'
+                ? piDefault
+                : null
+    return dflt ? { ...r, model: dflt } : r
+  })
 }
 
 /** All computers visible to a company (Cumora Cloud + the user's paired ones),
